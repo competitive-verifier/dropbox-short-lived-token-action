@@ -57,8 +57,19 @@ jobs:
         id: test-action
         uses: ./
         with:
-          milliseconds: 2000
+          app-key: ${{ secrets.APP_KEY }}
+          app-secret: ${{ secrets.APP_SECRET }}
+          refresh-token: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
 
-      - name: Print Output
+      - name: Output $DROPBOX_TOKEN
         id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+        run: |
+          [[ ${#DROPBOX_TOKEN} > 0 ]]
+
+      - name: Call Dropbox API
+        id: call
+        run: |
+          curl https://api.dropboxapi.com/2/files/list_folder \
+            -d '{"path":"","shared_link":{"url":"https://www.dropbox.com/sh/nx3tnilzqz7df8a/AAAYlTq2tiEHl5hsESw6-yfLa"}}' \
+            -H 'Content-Type:application/json' \
+            -H "Authorization:Bearer $DROPBOX_TOKEN"

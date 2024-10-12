@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
-import { wait } from './wait'
+import { HttpClient } from '@actions/http-client'
+import { BasicCredentialHandler } from '@actions/http-client/lib/auth'
 
 /**
  * The main function for the action.
@@ -7,20 +8,25 @@ import { wait } from './wait'
  */
 export async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
+    const appKey = core.getInput('app-key')
+    const appSecret = core.getInput('app-secret')
+    const refreshToken = core.getInput('refresh-token')
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Waiting ${ms} milliseconds ...`)
+    const http = new HttpClient('dropbox-short-lived-token-action', [
+      new BasicCredentialHandler(appKey, appSecret)
+    ])
 
-    // Log the current timestamp, wait, then log the new timestamp
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+    const data = `grant_type=refresh_token&refresh_token=${refreshToken}`
+    const response = await http.post(
+      'https://api.dropbox.com/oauth2/token',
+      data
+    )
+    const body = await response.readBody()
 
-    // Set outputs for other workflow steps to use
-    core.setOutput('time', new Date().toTimeString())
+    const token = JSON.parse(body)['access_token']
+    core.setSecret(token)
+    core.exportVariable('DROPBOX_TOKEN', token)
   } catch (error) {
-    // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)
   }
 }
